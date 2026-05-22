@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { PeriodLog, FlowIntensity, PainLevel } from '../types';
-import { X, Check, AlertCircle, Baby, Loader2, Activity } from 'lucide-react';
+import { X, Check, AlertCircle, Baby, Loader2, Activity, ChevronRight } from 'lucide-react';
 import { api } from '../services/api'; 
 import CryptoJS from 'crypto-js'; 
 
@@ -60,15 +60,27 @@ const LogForm: React.FC<Props> = ({ initialAge, onAdd, onClose }) => {
       notes
     };
 
+    // 🌟 IF PREGNANT: Encrypt, Save, Close, and let App.tsx handle the Tab switch!
+    if (isPregnant) {
+      const encryptedString = CryptoJS.AES.encrypt(JSON.stringify(currentLogData), SECRET_KEY).toString();
+      
+      // 🌟 FIX: Pass `isPregnant: true` OUTSIDE the encryption so App.tsx knows to change the tab
+      onAdd({ secureData: encryptedString, isPregnant: true }, age); 
+      
+      onClose(); 
+      return; 
+    }
+
+    // 🌟 IF NOT PREGNANT: Run ML Prediction
     setIsPredicting(true);
 
     try {
       const result = await api.predictHealthRisk({
-         age,
-         duration,
-         flowIntensity: currentLogData.flowIntensity,
-         painLevel: currentLogData.painLevel,
-         symptoms: selectedSymptoms
+          age,
+          duration,
+          flowIntensity: currentLogData.flowIntensity,
+          painLevel: currentLogData.painLevel,
+          symptoms: selectedSymptoms
       });
 
       setPredictionResult({
@@ -80,10 +92,9 @@ const LogForm: React.FC<Props> = ({ initialAge, onAdd, onClose }) => {
 
     } catch (error) {
       console.error("Prediction failed", error);
-      
-      // Fallback Encryption
+      // Fallback Encryption if ML fails
       const encryptedFallbackString = CryptoJS.AES.encrypt(JSON.stringify(currentLogData), SECRET_KEY).toString();
-      onAdd({ secureData: encryptedFallbackString }, age);
+      onAdd({ secureData: encryptedFallbackString, isPregnant: currentLogData.isPregnant }, age);
       onClose();
     } finally {
       setIsPredicting(false);
@@ -96,7 +107,8 @@ const LogForm: React.FC<Props> = ({ initialAge, onAdd, onClose }) => {
           const encryptedString = CryptoJS.AES.encrypt(JSON.stringify(logDataToSave), SECRET_KEY).toString();
           
           const securePayload = {
-             secureData: encryptedString 
+             secureData: encryptedString,
+             isPregnant: logDataToSave.isPregnant // Explicitly pass flag for App.tsx
           };
 
           onAdd(securePayload, age);
@@ -105,7 +117,7 @@ const LogForm: React.FC<Props> = ({ initialAge, onAdd, onClose }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center sm:p-4">
+    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-end sm:items-center justify-center sm:p-4">
       <div className="bg-white rounded-t-[2rem] sm:rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden animate-in slide-in-from-bottom-full sm:fade-in sm:zoom-in duration-300 max-h-[95vh] flex flex-col">
         
         {/* Mobile Drag Indicator */}
@@ -151,7 +163,14 @@ const LogForm: React.FC<Props> = ({ initialAge, onAdd, onClose }) => {
             <div className="space-y-3">
               <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">Pregnancy Status</label>
               <div className="flex flex-col sm:flex-row gap-3">
-                <button type="button" onClick={() => { setIsPregnant(true); setIsMissed(true); }} className={`flex-1 py-3.5 sm:py-3 rounded-xl text-sm font-bold border flex items-center justify-center gap-2 transition-all ${isPregnant ? 'bg-indigo-50 border-indigo-200 text-indigo-700 ring-2 ring-indigo-500/10' : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'}`}>
+                <button 
+                  type="button" 
+                  onClick={() => { 
+                    setIsPregnant(true); 
+                    setIsMissed(true); 
+                  }} 
+                  className={`flex-1 py-3.5 sm:py-3 rounded-xl text-sm font-bold border flex items-center justify-center gap-2 transition-all ${isPregnant ? 'bg-indigo-50 border-indigo-200 text-indigo-700 ring-2 ring-indigo-500/10' : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'}`}
+                >
                   <Baby size={18} /> Pregnant
                 </button>
                 <button type="button" onClick={() => setIsPregnant(false)} className={`flex-1 py-3.5 sm:py-3 rounded-xl text-sm font-bold border flex items-center justify-center gap-2 transition-all ${!isPregnant ? 'bg-rose-50 border-rose-200 text-rose-700 ring-2 ring-rose-500/10' : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'}`}>
@@ -239,7 +258,7 @@ const LogForm: React.FC<Props> = ({ initialAge, onAdd, onClose }) => {
                 ) : (
                    <>
                      <Check size={20} />
-                     {isPregnant ? 'Log Pregnancy Status' : (isMissed ? 'Record Missed Period' : 'Save Entry')}
+                     {isPregnant ? 'Proceed to Pregnancy Dashboard' : (isMissed ? 'Record Missed Period' : 'Save Entry')}
                    </>
                 )}
               </button>

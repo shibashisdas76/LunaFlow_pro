@@ -1,0 +1,9 @@
+{
+  "appId": "com.lunaflow.app",
+  "appName": "LunaFlow",
+  "webDir": "www",
+  "server": {
+    "url": "https://lunaflow-pro-webapp.onrender.com",
+    "cleartext": true
+  }
+}

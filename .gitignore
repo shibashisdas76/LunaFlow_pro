@@ -1,0 +1,21 @@
+# Python
+.venv/
+__pycache__/
+
+# Node
+node_modules/
+npm-debug.log
+
+# Capacitor / Android
+LunaFlowAPK/node_modules/
+LunaFlowAPK/android/.gradle/
+LunaFlowAPK/android/build/
+LunaFlowAPK/android/app/build/
+
+# Build
+dist/
+build/
+
+# OS
+.DS_Store
+Thumbs.db

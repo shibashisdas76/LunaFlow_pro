@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'; 
 import { PeriodLog, UserProfile, User } from './types';
 import { api } from './services/api'; 
@@ -11,9 +11,15 @@ import DoctorsView from './components/DoctorsView';
 import Auth from './components/Auth';
 import logoImage from './public/Lunaflow.jpeg';
 import ProfilePage from './components/ProfilePage';
+import CryptoJS from 'crypto-js'; // 🌟 IMPORTED CRYPTO-JS
 
-// ✅ Added 'Building' icon for the new Institute Services menu option
-import { Heart, History, ShieldAlert, Plus, LayoutDashboard, LogOut, User as UserIcon, MapPin, Search, Loader2, Trash2, BellRing, Sparkles, ArrowRight, Info, Activity, Zap, BookOpen, Bluetooth, Stethoscope, Video, BookCheck, Calendar, ShieldCheck, AlertTriangle, FileText, Settings, Menu, X, Building } from 'lucide-react';
+// 🌟 IMPORT YOUR SEPARATE PREGNANCY APP HERE:
+import PregnancyDashboard from './PregnancyMode/App.jsx'; 
+
+// 🌟 ADDED SECRET KEY
+const SECRET_KEY = import.meta.env.VITE_APP_ENCRYPTION_KEY || 'luna-hackathon-secure-key-2026';
+
+import { Heart, History, ShieldAlert, Plus, LayoutDashboard, LogOut, User as UserIcon, MapPin, Search, Loader2, Trash2, BellRing, Sparkles, ArrowRight, Info, Activity, Zap, BookOpen, Bluetooth, Stethoscope, Video, BookCheck, Calendar, ShieldCheck, AlertTriangle, FileText, Settings, Menu, X, Building, Baby } from 'lucide-react';
 
 import InstituteServicesSidebar from './components/enterprise/InstituteServicesSidebar';
 import AwarenessAssignment from './components/AwarenessAssignment';
@@ -23,8 +29,7 @@ const App: React.FC = () => {
   const [logs, setLogs] = useState<PeriodLog[]>([]);
   const [profile, setProfile] = useState<UserProfile>({ age: 25, averageCycleLength: 28, location: '' });
   
-  // 🌟 Added 'institute' to the activeTab state
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'history' | 'analysis' | 'tutorials' | 'doctors' | 'assignment' | 'profile' | 'institute'>('dashboard'); 
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'history' | 'analysis' | 'tutorials' | 'doctors' | 'assignment' | 'profile' | 'institute' | 'pregnancy'>('dashboard'); 
   
   const [isLogFormOpen, setIsLogFormOpen] = useState(false);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
@@ -80,11 +85,42 @@ const App: React.FC = () => {
     fetchData();
   }, [currentUser]);
 
-  useEffect(() => {
-    if (!currentUser || currentUser.role === 'male_user') return;
+  // 🌟 NEW: Decrypt the logs inside App.tsx so the router knows if the user is pregnant
+  const unlockedLogs = useMemo(() => {
+    return logs.map(log => {
+      const secureData = (log as any).secureData;
+      if (secureData) {
+        try {
+          const bytes = CryptoJS.AES.decrypt(secureData, SECRET_KEY);
+          const originalData = JSON.parse(bytes.toString(CryptoJS.enc.Utf8));
+          if (typeof originalData === 'object' && originalData !== null) {
+            return { ...log, ...originalData };
+          }
+        } catch (e) {
+          console.error("Decryption failed in App", e);
+        }
+      }
+      return log;
+    });
+  }, [logs]);
 
-    if (logs.length > 0 && profile.averageCycleLength) {
-      const lastPeriodDate = new Date(logs[0].startDate);
+  // 🌟 Now App.tsx reads the UNLOCKED logs to find the true pregnancy status
+  const latestLog = unlockedLogs.length > 0 ? [...unlockedLogs].sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime())[0] : null;
+  const isCurrentlyPregnant = latestLog?.isPregnant || false;
+
+  useEffect(() => {
+    if (isCurrentlyPregnant && activeTab === 'dashboard') {
+      setActiveTab('pregnancy');
+    } else if (!isCurrentlyPregnant && activeTab === 'pregnancy') {
+      setActiveTab('dashboard');
+    }
+  }, [isCurrentlyPregnant, activeTab]);
+
+  useEffect(() => {
+    if (!currentUser || currentUser.role === 'male_user' || isCurrentlyPregnant) return; 
+
+    if (unlockedLogs.length > 0 && profile.averageCycleLength) {
+      const lastPeriodDate = new Date(unlockedLogs[0].startDate);
       const nextPeriodDate = new Date(lastPeriodDate);
       nextPeriodDate.setDate(lastPeriodDate.getDate() + profile.averageCycleLength);
       
@@ -105,7 +141,7 @@ const App: React.FC = () => {
     }
     const today = new Date();
     if (today.getDate() <= 3) setShowMonthlyReminder(true); else setShowMonthlyReminder(false);
-  }, [logs, profile, currentUser]);
+  }, [unlockedLogs, profile, currentUser, isCurrentlyPregnant]);
 
   const handleLogout = () => {
     localStorage.removeItem('lunaflow_session');
@@ -157,9 +193,24 @@ const App: React.FC = () => {
     } 
   };
 
-  const handleAddLog = async (newLog: Omit<PeriodLog, 'id' | 'cycleLength'>, age: number) => { if (!currentUser) return; try { const response = await api.addLog(currentUser.id, newLog, age); const formattedLogs = response.logs.map((l: any) => ({ ...l, id: l._id })); setLogs(formattedLogs); setProfile(prev => ({ ...prev, ...response.profile })); setIsLogFormOpen(false); } catch (error) { console.error("Failed to save log", error); } };
+  const handleAddLog = async (newLog: Omit<PeriodLog, 'id' | 'cycleLength'>, age: number) => { 
+    if (!currentUser) return; 
+    try { 
+      const response = await api.addLog(currentUser.id, newLog, age); 
+      const formattedLogs = response.logs.map((l: any) => ({ ...l, id: l._id })); 
+      setLogs(formattedLogs); 
+      setProfile(prev => ({ ...prev, ...response.profile })); 
+      setIsLogFormOpen(false); 
+      
+      if ((newLog as any).isPregnant) {
+        setActiveTab('pregnancy');
+      }
+    } catch (error) { 
+      console.error("Failed to save log", error); 
+    } 
+  };
   const handleDeleteLog = async (logId: string) => { if (!currentUser || !window.confirm("Are you sure?")) return; try { const response = await api.deleteLog(logId, currentUser.id); const formattedLogs = response.logs.map((l: any) => ({ ...l, id: l._id })); setLogs(formattedLogs); setProfile(prev => ({ ...prev, averageCycleLength: response.profile.averageCycleLength })); } catch (error) { console.error("Failed to delete", error); } };
-  const handleResetData = async () => { if (!currentUser || !window.confirm("WARNING: All data will be deleted.")) return; try { await api.resetData(currentUser.id); setLogs([]); setProfile({ ...profile, averageCycleLength: 28 }); } catch (error) { console.error("Failed to reset", error); } };
+  const handleResetData = async () => { if (!currentUser || !window.confirm("WARNING: All data will be deleted.")) return; try { await api.resetData(currentUser.id); setLogs([]); setProfile({ ...profile, averageCycleLength: 28 }); setActiveTab('dashboard'); } catch (error) { console.error("Failed to reset", error); } };
 
   const handleUpdateProfile = (updatedUser: User) => {
     setCurrentUser(updatedUser);
@@ -327,13 +378,19 @@ const App: React.FC = () => {
                       </button>
                     )}
 
-                    {/* These items show on Desktop Sidebar, but are hidden on Mobile Drawer (since they are in Bottom Nav) */}
+                    {/* 🌟 Dynamic Dashboard / Pregnancy Tab based on Status */}
                     <div className="hidden lg:block space-y-2">
-                        <button onClick={() => changeTab('dashboard')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold transition-all ${activeTab === 'dashboard' ? 'bg-rose-500 text-white shadow-lg' : 'text-slate-400 hover:bg-rose-50'}`}>
-                          <LayoutDashboard size={20} /> Dashboard
-                        </button>
+                        {isCurrentlyPregnant ? (
+                          <button onClick={() => changeTab('pregnancy')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold transition-all ${activeTab === 'pregnancy' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:bg-indigo-50 hover:text-indigo-600'}`}>
+                            <Baby size={20} /> Pregnancy Journey
+                          </button>
+                        ) : (
+                          <button onClick={() => changeTab('dashboard')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold transition-all ${activeTab === 'dashboard' ? 'bg-rose-500 text-white shadow-lg' : 'text-slate-400 hover:bg-rose-50'}`}>
+                            <LayoutDashboard size={20} /> Dashboard
+                          </button>
+                        )}
 
-                        {showFullBaseApp && (
+                        {showFullBaseApp && !isCurrentlyPregnant && (
                           <>
                             <button onClick={() => changeTab('history')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold transition-all ${activeTab === 'history' ? 'bg-rose-500 text-white shadow-lg' : 'text-slate-400 hover:bg-rose-50'}`}><History size={20} /> My Records</button>
                             <button onClick={() => changeTab('analysis')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold transition-all ${activeTab === 'analysis' ? 'bg-rose-500 text-white shadow-lg' : 'text-slate-400 hover:bg-rose-50'}`}><ShieldAlert size={20} /> Health Analysis</button>
@@ -355,7 +412,7 @@ const App: React.FC = () => {
                       <span className="bg-rose-100 text-rose-600 text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wider font-black">Required</span>
                     </button>
 
-                    {/* 🌟 NEW: Mobile Only - Institute Services accessed via the "More" Drawer */}
+                    {/* Mobile Only - Institute Services accessed via the "More" Drawer */}
                     {showFullBaseApp && (
                       <button onClick={() => changeTab('institute')} className={`lg:hidden w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold transition-all mt-4 mb-2 ${activeTab === 'institute' ? 'bg-blue-600 text-white shadow-lg' : 'bg-blue-50 text-blue-600 hover:bg-blue-100'}`}>
                         <Building size={20} /> Institute Services
@@ -400,13 +457,14 @@ const App: React.FC = () => {
                 </nav>
 
                 {/* MAIN CONTENT AREA */}
-                {/* Notice pb-28 to prevent content hiding behind the Bottom App Bar */}
                 <main className={`relative z-10 flex-1 p-4 pt-24 pb-28 lg:pt-10 lg:pb-10 lg:p-10 max-w-7xl mx-auto w-full transition-opacity duration-500 ${showOverview ? 'opacity-0' : 'opacity-100'} overflow-y-auto`}>
                   
                   {/* Dynamic Header */}
                   <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 md:gap-8 mb-8 md:mb-10"> 
                     <div>
-                      <h2 className="text-3xl md:text-4xl font-black text-slate-800 capitalize tracking-tight">{activeTab === 'profile' ? 'My Profile' : activeTab === 'institute' ? 'Institute Connect' : activeTab}</h2>
+                      <h2 className="text-3xl md:text-4xl font-black text-slate-800 capitalize tracking-tight">
+                        {activeTab === 'profile' ? 'My Profile' : activeTab === 'institute' ? 'Institute Connect' : activeTab === 'pregnancy' ? 'Pregnancy Journey' : activeTab}
+                      </h2>
                       <div className="flex flex-col sm:flex-row sm:items-center gap-2 mt-2">
                         <p className="text-sm md:text-base text-slate-500 font-medium">Monitoring portal for {currentUser.name.split(' ')[0]}</p>
                         {profile.location && showFullBaseApp && (
@@ -418,7 +476,7 @@ const App: React.FC = () => {
                     </div>
                     
                     {/* Desktop Add Log Button */}
-                    {showFullBaseApp && activeTab !== 'profile' && activeTab !== 'institute' && (
+                    {showFullBaseApp && activeTab !== 'profile' && activeTab !== 'institute' && activeTab !== 'pregnancy' && (
                       <button onClick={() => setIsLogFormOpen(true)} className="hidden lg:flex items-center gap-2 bg-gradient-to-r from-rose-500 to-orange-400 text-white px-8 py-4 rounded-3xl font-bold hover:opacity-90 transition-all shadow-2xl hover:scale-105 active:scale-95">
                         <Plus size={22} /> Log Period
                       </button>
@@ -426,7 +484,7 @@ const App: React.FC = () => {
                   </header>
 
                   <div className="space-y-4 mb-8">
-                    {showCycleAlarm && showFullBaseApp && activeTab !== 'profile' && activeTab !== 'institute' && (
+                    {showCycleAlarm && showFullBaseApp && activeTab !== 'profile' && activeTab !== 'institute' && !isCurrentlyPregnant && (
                       <div className="bg-white/80 backdrop-blur-md border border-rose-200 p-4 md:p-5 rounded-3xl flex items-center gap-4 md:gap-5 shadow-xl animate-in slide-in-from-top-4">
                         <div className="bg-rose-500 text-white p-3 md:p-3.5 rounded-2xl shadow-lg animate-bounce shrink-0"><BellRing size={20} className="md:w-6 md:h-6" /></div>
                         <div>
@@ -438,9 +496,9 @@ const App: React.FC = () => {
                   </div>
 
                   <div className="relative z-20">
-                    {activeTab === 'dashboard' && <Dashboard logs={logs} profile={profile} />}
-                    {activeTab === 'history' && showFullBaseApp && <HistoryTable logs={logs} onDelete={handleDeleteLog} />}
-                    {activeTab === 'analysis' && showFullBaseApp && <AnalysisView logs={logs} profile={profile} />}
+                    {activeTab === 'dashboard' && !isCurrentlyPregnant && <Dashboard logs={logs} profile={profile} />}
+                    {activeTab === 'history' && showFullBaseApp && !isCurrentlyPregnant && <HistoryTable logs={logs} onDelete={handleDeleteLog} />}
+                    {activeTab === 'analysis' && showFullBaseApp && !isCurrentlyPregnant && <AnalysisView logs={logs} profile={profile} />}
                     {activeTab === 'doctors' && showFullBaseApp && <DoctorsView userLocation={profile.location || 'India'} />}
                     {activeTab === 'tutorials' && <TutorialsView />}
                     {activeTab === 'assignment' && <AwarenessAssignment />}
@@ -449,7 +507,12 @@ const App: React.FC = () => {
                       <ProfilePage user={currentUser} onUpdateUser={handleUpdateProfile} />
                     )}
 
-                    {/* 🌟 NEW: Mobile Institute Services View */}
+                    {/* 🌟 NEW: Renders your PregnancyDashboard component! */}
+                    {activeTab === 'pregnancy' && showFullBaseApp && (
+                      <PregnancyDashboard />
+                    )}
+
+                    {/* Mobile Institute Services View */}
                     {activeTab === 'institute' && showFullBaseApp && (
                       <div className="w-full flex flex-col items-center justify-center pt-8 pb-10 animate-in zoom-in-95 duration-300">
                          <div className="bg-blue-50 border border-blue-100 p-5 rounded-[2rem] shadow-inner mb-6">
@@ -460,7 +523,6 @@ const App: React.FC = () => {
                             Tap your dedicated access button below to submit complaints, apply for leaves, and connect with your institution.
                          </p>
                          
-                         {/* Render the component inline for mobile users to access its native toggle button clearly */}
                          <div className="relative w-full h-[200px] flex items-center justify-center bg-white rounded-3xl border border-slate-100 shadow-sm overflow-visible">
                             <InstituteServicesSidebar user={currentUser} />
                          </div>
@@ -472,7 +534,7 @@ const App: React.FC = () => {
                   {isLogFormOpen && showFullBaseApp && <LogForm initialAge={profile.age} onAdd={handleAddLog} onClose={() => setIsLogFormOpen(false)} />}
                 </main>
 
-                {/* 🌟 Hide the floating button on mobile if they are on a different tab to prevent overlapping! */}
+                {/* Hide the floating button on mobile if they are on a different tab to prevent overlapping! */}
                 <div className={`${activeTab !== 'institute' ? 'hidden lg:block' : 'hidden'}`}>
                   <InstituteServicesSidebar user={currentUser} />
                 </div>
@@ -480,24 +542,28 @@ const App: React.FC = () => {
                 {/* 🌟 MOBILE BOTTOM NAVIGATION BAR 🌟 */}
                 <div className="lg:hidden fixed bottom-0 left-0 right-0 h-[72px] bg-white border-t border-slate-200 flex justify-between items-center px-6 z-[60] pb-safe shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
                   
-                  {/* Tab 1: Dashboard */}
-                  <button onClick={() => changeTab('dashboard')} className={`flex flex-col items-center justify-center space-y-1 w-12 transition-colors ${activeTab === 'dashboard' ? 'text-rose-500' : 'text-slate-400'}`}>
-                    <LayoutDashboard size={22} className={activeTab === 'dashboard' ? 'fill-rose-50' : ''} />
-                    <span className="text-[10px] font-bold">Home</span>
+                  {/* 🌟 Dynamic Tab 1: Dashboard OR Pregnancy */}
+                  <button onClick={() => changeTab(isCurrentlyPregnant ? 'pregnancy' : 'dashboard')} className={`flex flex-col items-center justify-center space-y-1 w-12 transition-colors ${activeTab === 'dashboard' || activeTab === 'pregnancy' ? (isCurrentlyPregnant ? 'text-indigo-600' : 'text-rose-500') : 'text-slate-400'}`}>
+                    {isCurrentlyPregnant ? (
+                      <Baby size={22} className={activeTab === 'pregnancy' ? 'fill-indigo-50' : ''} />
+                    ) : (
+                      <LayoutDashboard size={22} className={activeTab === 'dashboard' ? 'fill-rose-50' : ''} />
+                    )}
+                    <span className="text-[10px] font-bold">{isCurrentlyPregnant ? 'Journey' : 'Home'}</span>
                   </button>
 
-                  {/* Tab 2: History (If eligible) */}
-                  {showFullBaseApp ? (
+                  {/* Tab 2: History (Hidden if pregnant to save confusion) */}
+                  {showFullBaseApp && !isCurrentlyPregnant ? (
                     <button onClick={() => changeTab('history')} className={`flex flex-col items-center justify-center space-y-1 w-12 transition-colors ${activeTab === 'history' ? 'text-rose-500' : 'text-slate-400'}`}>
                       <History size={22} className={activeTab === 'history' ? 'fill-rose-50' : ''} />
                       <span className="text-[10px] font-bold">Records</span>
                     </button>
                   ) : (
-                    <div className="w-12"></div> /* Empty placeholder for layout balance */
+                    <div className="w-12"></div>
                   )}
 
-                  {/* Center Floating Action Button (FAB) */}
-                  {showFullBaseApp ? (
+                  {/* Center Floating Action Button (FAB) (Hidden if pregnant) */}
+                  {showFullBaseApp && !isCurrentlyPregnant ? (
                     <div className="relative -top-6">
                       <button 
                         onClick={() => setIsLogFormOpen(true)} 
@@ -507,11 +573,11 @@ const App: React.FC = () => {
                       </button>
                     </div>
                   ) : (
-                    <div className="w-14"></div> /* Empty placeholder */
+                    <div className="w-14"></div>
                   )}
 
-                  {/* Tab 4: Analysis (If eligible) */}
-                  {showFullBaseApp ? (
+                  {/* Tab 4: Analysis (Hidden if pregnant) */}
+                  {showFullBaseApp && !isCurrentlyPregnant ? (
                     <button onClick={() => changeTab('analysis')} className={`flex flex-col items-center justify-center space-y-1 w-12 transition-colors ${activeTab === 'analysis' ? 'text-rose-500' : 'text-slate-400'}`}>
                       <ShieldAlert size={22} className={activeTab === 'analysis' ? 'fill-rose-50' : ''} />
                       <span className="text-[10px] font-bold">AI</span>
