@@ -15,14 +15,13 @@ const DoctorsView: React.FC<{ userLocation: string }> = ({ userLocation }) => {
   const fetchDoctors = async () => {
     setLoading(true);
     try {
-     // 1. Extract Lat/Long from Location
+      // 1. Extract Lat/Long from Location
       const geoRes = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${userLocation || 'India'}&limit=1`);
       const geoData = await geoRes.json();
 
       if (geoData && geoData.length > 0) {
         const { lat, lon } = geoData[0];
 
-        
         const query = `
           [out:json];
           (
@@ -58,7 +57,7 @@ const DoctorsView: React.FC<{ userLocation: string }> = ({ userLocation }) => {
           }
         });
 
-        setDoctors(Array.from(uniqueDocs.values()).slice(0, 9)); // সর্বোচ্চ ৯টি রেজাল্ট
+        setDoctors(Array.from(uniqueDocs.values()).slice(0, 9)); 
       }
     } catch (err) {
       console.error("Fetch error:", err);
@@ -72,23 +71,29 @@ const DoctorsView: React.FC<{ userLocation: string }> = ({ userLocation }) => {
   }, [userLocation]);
 
   return (
-    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div className="bg-white p-6 rounded-3xl border border-rose-100 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4">
+    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
+      
+      {/* Header Section */}
+      <div className="bg-white p-5 sm:p-6 rounded-3xl border border-rose-100 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
         <div>
-          <h3 className="text-xl font-bold text-slate-800">Nearby Medical Centers</h3>
-          <p className="text-slate-400 text-sm flex items-center gap-1">
+          <h3 className="text-lg sm:text-xl font-bold text-slate-800">Nearby Medical Centers</h3>
+          <p className="text-slate-400 text-xs sm:text-sm flex items-center gap-1 mt-1">
             <MapPin size={12} /> Finding care near {userLocation || "your location"}
           </p>
         </div>
-        <button onClick={fetchDoctors} className="px-6 py-2 bg-rose-500 text-white rounded-xl font-bold hover:bg-rose-600 transition-all text-sm shadow-lg shadow-rose-200">
+        <button 
+          onClick={fetchDoctors} 
+          className="w-full sm:w-auto px-6 py-3 bg-rose-500 text-white rounded-xl font-bold hover:bg-rose-600 transition-all text-sm shadow-lg shadow-rose-200"
+        >
           Scan Area Again
         </button>
       </div>
 
+      {/* States */}
       {loading ? (
         <div className="flex flex-col items-center justify-center py-20 bg-white/40 rounded-3xl border border-dashed border-rose-200">
           <Loader2 className="animate-spin text-rose-500 mb-4" size={40} />
-          <p className="text-slate-500 font-medium">Locating nearest specialists...</p>
+          <p className="text-slate-500 font-medium text-sm">Locating nearest specialists...</p>
         </div>
       ) : doctors.length === 0 ? (
         <div className="text-center py-12 bg-white rounded-3xl border border-slate-100 p-6">
@@ -99,7 +104,7 @@ const DoctorsView: React.FC<{ userLocation: string }> = ({ userLocation }) => {
           <p className="text-xs text-slate-400 mt-2 max-w-xs mx-auto">OpenStreetMap data might be limited in this specific area.</p>
           
           <a 
-            href={`https://www.google.com/maps/search/gynecologist+near+${encodeURIComponent(userLocation)}`} 
+            href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(userLocation)}`} 
             target="_blank" 
             rel="noreferrer" 
             className="inline-flex items-center gap-2 mt-6 px-6 py-3 bg-blue-600 text-white rounded-xl font-bold text-sm hover:bg-blue-700 transition-all shadow-md"
@@ -108,25 +113,28 @@ const DoctorsView: React.FC<{ userLocation: string }> = ({ userLocation }) => {
           </a>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           {doctors.map((doc) => (
-            <div key={doc.id} className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm hover:shadow-xl transition-all group border-b-4 border-b-rose-400">
+            <div key={doc.id} className="bg-white p-5 sm:p-6 rounded-3xl border border-slate-100 shadow-sm hover:shadow-xl transition-all group border-b-4 border-b-rose-400 flex flex-col h-full">
               <div className="flex items-start justify-between mb-4">
-                <div className="w-12 h-12 bg-rose-50 rounded-2xl flex items-center justify-center text-rose-500 group-hover:scale-110 transition-transform">
+                <div className="w-12 h-12 bg-rose-50 rounded-2xl flex items-center justify-center text-rose-500 group-hover:scale-110 transition-transform shrink-0">
                   {doc.type.includes('Hospital') ? <Hospital size={24} /> : <Stethoscope size={24} />}
                 </div>
                 {doc.type.includes('Gynecology') && (
                   <span className="text-[9px] font-black bg-rose-50 text-rose-600 px-2 py-1 rounded-lg uppercase tracking-wider">Recommended</span>
                 )}
               </div>
-              <h4 className="font-bold text-slate-800 text-lg mb-1 truncate">{doc.name}</h4>
-              <p className="text-slate-500 text-xs font-bold uppercase tracking-wide mb-3">{doc.type}</p>
+              
+              <div className="flex-1">
+                <h4 className="font-bold text-slate-800 text-base sm:text-lg mb-1 truncate">{doc.name}</h4>
+                <p className="text-slate-500 text-[10px] sm:text-xs font-bold uppercase tracking-wide mb-3">{doc.type}</p>
+              </div>
               
               <a 
                 href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(doc.name + " " + userLocation)}`} 
                 target="_blank" 
                 rel="noreferrer"
-                className="flex items-center justify-center gap-2 py-3 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800 transition-all w-full shadow-md"
+                className="flex items-center justify-center gap-2 py-3 mt-4 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800 transition-all w-full shadow-md"
               >
                 <Navigation size={14} /> View on Map
               </a>
@@ -135,13 +143,14 @@ const DoctorsView: React.FC<{ userLocation: string }> = ({ userLocation }) => {
         </div>
       )}
 
-      <div className="bg-indigo-900 text-white p-6 rounded-3xl flex items-center gap-4 shadow-xl">
-         <div className="p-3 bg-white/10 rounded-2xl">
+      {/* Emergency Section */}
+      <div className="bg-indigo-900 text-white p-5 sm:p-6 rounded-3xl flex flex-col sm:flex-row items-center gap-4 shadow-xl">
+         <div className="p-3 bg-white/10 rounded-2xl shrink-0">
             <Phone size={24} className="text-rose-400" />
          </div>
-         <div>
-            <h4 className="font-bold text-lg">Medical Emergency?</h4>
-            <p className="text-xs text-indigo-200 mt-1">If you are in pain or need urgent help, dial 102 (Ambulance) or 108 immediately.</p>
+         <div className="text-center sm:text-left">
+            <h4 className="font-bold text-base sm:text-lg">Medical Emergency?</h4>
+            <p className="text-xs sm:text-sm text-indigo-200 mt-1">If you are in pain or need urgent help, dial 102 (Ambulance) or 108 immediately.</p>
          </div>
       </div>
     </div>

@@ -46,6 +46,11 @@ const userSchema = new mongoose.Schema({
 
 const logSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.Mixed, required: true }, 
+  
+  // 🔒 ZERO-KNOWLEDGE ARCHITECTURE: Added field to store the encrypted payload
+  secureData: { type: String }, 
+  
+  // Kept old fields so existing unencrypted data doesn't break
   startDate: String,
   endDate: String,
   duration: Number,
@@ -223,6 +228,9 @@ app.get('/api/data/:userId', async (req, res) => {
 app.post('/api/logs', async (req, res) => {
   try {
     const { userId, log, age } = req.body;
+    
+    // 🔒 The frontend passes the encrypted `{ secureData: "..." }` object inside `log`.
+    // We seamlessly spread it into the new model so MongoDB accepts it.
     const newLog = new PeriodLog({ ...log, userId });
     await newLog.save();
 
@@ -238,7 +246,8 @@ app.post('/api/logs', async (req, res) => {
         updateFields['profile.age'] = age;
     }
 
-    const updatedUser = await User.findOneAndUpdate(getUserQuery(userId), { $set: updateFields }, { new: true });
+    // 🧹 CLEANED: Removed 'new: true' warning
+    const updatedUser = await User.findOneAndUpdate(getUserQuery(userId), { $set: updateFields }, { returnDocument: 'after' });
     const allLogs = await PeriodLog.find({ userId: getMixedUserIdQuery(userId) }).sort({ startDate: -1 });
     
     res.json({ logs: allLogs, profile: updatedUser ? updatedUser.profile : { age, averageCycleLength: avgCycle } });
@@ -256,7 +265,8 @@ app.put('/api/profile/:userId', async (req, res) => {
     if (profile.averageCycleLength !== undefined) updateObj['profile.averageCycleLength'] = profile.averageCycleLength;
     if (profile.location !== undefined) updateObj['profile.location'] = profile.location;
     
-    const updatedUser = await User.findOneAndUpdate(getUserQuery(req.params.userId), { $set: updateObj }, { new: true });
+    // 🧹 CLEANED: Removed 'new: true' warning
+    const updatedUser = await User.findOneAndUpdate(getUserQuery(req.params.userId), { $set: updateObj }, { returnDocument: 'after' });
     res.json({ success: true, profile: updatedUser ? updatedUser.profile : profile });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -277,7 +287,8 @@ app.delete('/api/logs/:id', async (req, res) => {
        avgCycle = Math.round(totalDays / validLogs.length);
     }
     
-    const updatedUser = await User.findOneAndUpdate(getUserQuery(userId), { $set: { 'profile.averageCycleLength': avgCycle } }, { new: true });
+    // 🧹 CLEANED: Removed 'new: true' warning
+    const updatedUser = await User.findOneAndUpdate(getUserQuery(userId), { $set: { 'profile.averageCycleLength': avgCycle } }, { returnDocument: 'after' });
     res.json({ logs: allLogs, profile: updatedUser ? updatedUser.profile : { averageCycleLength: avgCycle } });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -288,7 +299,8 @@ app.delete('/api/logs/:id', async (req, res) => {
 app.delete('/api/reset/:userId', async (req, res) => {
   try {
     await PeriodLog.deleteMany({ userId: getMixedUserIdQuery(req.params.userId) });
-    await User.findOneAndUpdate(getUserQuery(req.params.userId), { $set: { 'profile.averageCycleLength': 28 } }, { new: true });
+    // 🧹 CLEANED: Removed 'new: true' warning
+    await User.findOneAndUpdate(getUserQuery(req.params.userId), { $set: { 'profile.averageCycleLength': 28 } }, { returnDocument: 'after' });
     res.json({ success: true, message: "All records reset successfully" });
   } catch (err) {
     res.status(500).json({ error: err.message });

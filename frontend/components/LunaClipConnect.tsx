@@ -120,7 +120,7 @@ const LunaClipConnect = ({ onDataReceived }: { onDataReceived?: (data: any) => v
   };
 
   return (
-    <div className="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-slate-100 flex flex-col h-full relative overflow-hidden">
+    <div className="bg-white p-5 sm:p-6 md:p-8 rounded-[2rem] sm:rounded-3xl shadow-sm border border-slate-100 flex flex-col h-full min-h-[420px] relative overflow-hidden">
       
       {/* Background Pulse Effect when Scanning */}
       {scanState === 'scanning' && (
@@ -130,39 +130,39 @@ const LunaClipConnect = ({ onDataReceived }: { onDataReceived?: (data: any) => v
       <div className="relative z-10 flex flex-col items-center w-full h-full justify-between">
         
         {/* TOP: Header & Icon */}
-        <div className="w-full flex flex-col items-center text-center">
-          <div className={`w-16 h-16 rounded-2xl flex items-center justify-center shadow-inner mb-4 transition-all duration-500 ${
+        <div className="w-full flex flex-col items-center text-center mt-2 sm:mt-0">
+          <div className={`w-14 h-14 sm:w-16 sm:h-16 rounded-2xl flex items-center justify-center shadow-inner mb-3 sm:mb-4 transition-all duration-500 ${
             scanState === 'success' ? 'bg-emerald-100 text-emerald-500 scale-110' :
             scanState === 'error' ? 'bg-rose-100 text-rose-500 scale-110' :
             status === 'connected' ? 'bg-indigo-100 text-indigo-500' : 
             'bg-slate-50 text-slate-400'
           }`}>
             {scanState === 'scanning' ? (
-              <Fingerprint size={32} className="animate-pulse text-indigo-500" />
+              <Fingerprint size={28} className="animate-pulse text-indigo-500 sm:w-8 sm:h-8" />
             ) : scanState === 'success' ? (
-              <CheckCircle2 size={32} />
+              <CheckCircle2 size={28} className="sm:w-8 sm:h-8" />
             ) : scanState === 'error' ? (
-              <AlertCircle size={32} />
+              <AlertCircle size={28} className="sm:w-8 sm:h-8" />
             ) : (
-              <Usb size={32} className={status === 'connecting' ? 'animate-pulse' : ''} />
+              <Usb size={28} className={`sm:w-8 sm:h-8 ${status === 'connecting' ? 'animate-pulse' : ''}`} />
             )}
           </div>
           
-          <h3 className="text-xl font-black text-slate-800">LunaClip Hardware</h3>
-          <p className="text-sm font-medium text-slate-500 mt-1">Live Hb, SpO2 & Heart Rate Sync</p>
+          <h3 className="text-lg sm:text-xl font-black text-slate-800">LunaClip Hardware</h3>
+          <p className="text-xs sm:text-sm font-medium text-slate-500 mt-1">Live Hb, SpO2 & Heart Rate Sync</p>
         </div>
 
         {/* MIDDLE: Live Terminal & Progress */}
-        <div className="w-full my-6 space-y-4">
+        <div className="w-full my-5 sm:my-6 space-y-4">
           
           {/* Live Serial Terminal */}
-          <div className="bg-slate-900 rounded-xl p-3 shadow-inner w-full flex flex-col h-32 border border-slate-700">
-            <div className="flex items-center gap-2 mb-2 pb-2 border-b border-slate-700 text-slate-400 text-[10px] font-bold uppercase tracking-widest">
-              <Terminal size={12} />
+          <div className="bg-slate-900 rounded-xl p-3 sm:p-4 shadow-inner w-full flex flex-col h-36 sm:h-44 md:h-48 border border-slate-700">
+            <div className="flex items-center gap-2 mb-2 pb-2 border-b border-slate-700 text-slate-400 text-[10px] sm:text-xs font-bold uppercase tracking-widest">
+              <Terminal size={12} className="sm:w-3.5 sm:h-3.5" />
               Live Sensor Console
-              {scanState === 'scanning' && <Loader2 size={10} className="ml-auto animate-spin text-indigo-400" />}
+              {scanState === 'scanning' && <Loader2 size={10} className="ml-auto animate-spin text-indigo-400 sm:w-3.5 sm:h-3.5" />}
             </div>
-            <div className="flex-1 overflow-y-auto text-left font-mono text-[10px] leading-relaxed flex flex-col justify-end">
+            <div className="flex-1 overflow-y-auto text-left font-mono text-[10px] sm:text-xs leading-relaxed flex flex-col justify-end">
               {serialLogs.map((log, i) => (
                 <div key={i} className={`truncate ${
                   log.includes("✅") ? "text-emerald-400" :
@@ -179,7 +179,7 @@ const LunaClipConnect = ({ onDataReceived }: { onDataReceived?: (data: any) => v
 
           {/* Progress Bar */}
           {status === 'connected' && (
-            <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden shadow-inner">
+            <div className="w-full bg-slate-100 h-2.5 sm:h-3 rounded-full overflow-hidden shadow-inner">
               <div 
                 className={`h-full rounded-full transition-all duration-300 ease-out ${
                   scanState === 'error' ? 'bg-rose-500 w-full opacity-50' : 
@@ -200,26 +200,26 @@ const LunaClipConnect = ({ onDataReceived }: { onDataReceived?: (data: any) => v
         <div className="w-full mt-auto flex flex-col items-center">
           
           {status === 'connected' ? (
-            <div className="flex flex-col items-center gap-2 w-full">
+            <div className="flex flex-col items-center gap-2.5 sm:gap-2 w-full">
               {lastSyncTime && (
-                <div className="flex items-center gap-1.5 text-xs font-bold text-slate-500 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200">
-                  <Clock size={14} className="text-slate-400" /> 
+                <div className="flex items-center gap-1.5 text-[11px] sm:text-xs font-bold text-slate-500 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200">
+                  <Clock size={12} className="text-slate-400 sm:w-3.5 sm:h-3.5" /> 
                   Last Synced: <span className="text-slate-700">{lastSyncTime}</span>
                 </div>
               )}
               
-              <div className={`flex items-center justify-center gap-2 text-xs font-bold px-4 py-2.5 rounded-full border w-full sm:w-auto ${
+              <div className={`flex items-center justify-center gap-2 text-[11px] sm:text-xs font-bold px-4 py-3 sm:py-2.5 rounded-xl sm:rounded-full border w-full sm:w-auto ${
                 scanState === 'error' ? 'text-rose-600 bg-rose-50 border-rose-200' :
                 scanState === 'success' ? 'text-emerald-600 bg-emerald-50 border-emerald-200' :
                 'text-indigo-600 bg-indigo-50 border-indigo-200'
               }`}>
                 {scanState === 'scanning' ? (
-                  <><Loader2 size={14} className="animate-spin"/> Measuring Vitals...</>
+                  <><Loader2 size={14} className="animate-spin shrink-0"/> Measuring Vitals...</>
                 ) : scanState === 'error' ? (
-                  <><AlertCircle size={14}/> Action Required</>
+                  <><AlertCircle size={14} className="shrink-0"/> Action Required</>
                 ) : (
                   <>
-                    <span className="relative flex h-2 w-2">
+                    <span className="relative flex h-2 w-2 shrink-0">
                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                       <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
                     </span>
@@ -232,15 +232,15 @@ const LunaClipConnect = ({ onDataReceived }: { onDataReceived?: (data: any) => v
             <button 
               onClick={connectToDevice}
               disabled={status === 'connecting'}
-              className="w-full sm:w-auto mx-auto bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3.5 px-8 rounded-2xl transition-all disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg shadow-indigo-500/30 hover:scale-105 active:scale-95"
+              className="w-full sm:w-auto mx-auto bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3.5 sm:py-3.5 px-6 sm:px-8 rounded-xl sm:rounded-2xl transition-all disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg shadow-indigo-500/30 hover:scale-105 active:scale-95 text-sm sm:text-base"
             >
-              <Usb size={20} /> {status === 'connecting' ? 'Connecting...' : 'Connect LunaClip'}
+              <Usb size={18} className="sm:w-5 sm:h-5" /> {status === 'connecting' ? 'Connecting...' : 'Connect LunaClip'}
             </button>
           )}
 
           {error && (
-            <div className="mt-4 flex items-start gap-2 text-xs font-medium text-rose-600 bg-rose-50 p-3 rounded-xl border border-rose-100 text-left animate-in fade-in">
-              <AlertCircle size={16} className="shrink-0 mt-0.5" />
+            <div className="mt-4 flex items-start gap-2 text-[11px] sm:text-xs font-medium text-rose-600 bg-rose-50 p-3 rounded-xl border border-rose-100 text-left animate-in fade-in w-full sm:w-auto">
+              <AlertCircle size={14} className="shrink-0 mt-0.5 sm:w-4 sm:h-4" />
               <p>{error}</p>
             </div>
           )}
